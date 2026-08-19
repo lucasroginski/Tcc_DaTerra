@@ -62,6 +62,7 @@ export const AuthProvider = ({ children }) => {
 
     const createdDate = new Date(user.createdAt);
     const today = new Date();
+    const diffTime = today - createdDate;
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     
     return Math.max(0, 15 - diffDays);
