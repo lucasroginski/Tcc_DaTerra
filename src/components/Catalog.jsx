@@ -321,12 +321,29 @@ const Catalog = () => {
                       </div>
 
                       <div className="mt-3">
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-[10px] font-bold text-gray-400">R$</span>
-                          <span className="text-lg sm:text-xl font-black text-honey-600">
-                            {product.price.toFixed(2)}
-                          </span>
-                          <span className="text-[10px] text-gray-400">/ un</span>
+                        <div className="flex flex-col">
+                          {product.is_promo && product.promo_price ? (
+                            <>
+                              <span className="text-[10px] font-bold text-gray-400 line-through">
+                                R$ {product.price.toFixed(2)}
+                              </span>
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-[10px] font-bold text-gray-400">R$</span>
+                                <span className="text-lg sm:text-xl font-black text-red-600">
+                                  {product.promo_price.toFixed(2)}
+                                </span>
+                                <span className="text-[10px] text-gray-400">/ un</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-[10px] font-bold text-gray-400">R$</span>
+                              <span className="text-lg sm:text-xl font-black text-honey-600">
+                                {product.price.toFixed(2)}
+                              </span>
+                              <span className="text-[10px] text-gray-400">/ un</span>
+                            </div>
+                          )}
                         </div>
 
                         {/* Botão de Adição Rápida "+ Adicionar ao Carrinho" */}

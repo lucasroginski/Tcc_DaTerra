@@ -11,6 +11,62 @@
 
 import db from '../config/database.js';
 
+export const getSales = async (req, res) => {
+  const { producerId } = req.query;
+  
+  try {
+    let query = `
+      SELECT 
+        s.id as sale_id, s.sale_date, s.total_value, s.payment_method,
+        si.quantity, si.unit_price as price,
+        p.id as product_id, p.name as product_name, p.category
+      FROM sales s
+      JOIN sale_items si ON s.id = si.sale_id
+      JOIN products p ON si.product_id = p.id
+    `;
+    let params = [];
+    
+    if (producerId) {
+      query += ` WHERE p.producer_id = ? `;
+      params.push(producerId);
+    }
+    
+    query += ` ORDER BY s.sale_date DESC`;
+    
+    const [rows] = await db.query(query, params);
+    
+    // Agrupar itens por venda para o formato esperado pelo frontend
+    const salesMap = {};
+    
+    for (const row of rows) {
+      if (!salesMap[row.sale_id]) {
+        salesMap[row.sale_id] = {
+          id: row.sale_id,
+          date: row.sale_date,
+          total_value: parseFloat(row.total_value),
+          payment_method: row.payment_method,
+          items: []
+        };
+      }
+      
+      salesMap[row.sale_id].items.push({
+        product_id: row.product_id,
+        product_name: row.product_name,
+        category: row.category,
+        quantity: row.quantity,
+        price: parseFloat(row.price)
+      });
+    }
+    
+    const formattedSales = Object.values(salesMap);
+    return res.status(200).json(formattedSales);
+    
+  } catch (error) {
+    console.error('Erro ao buscar vendas:', error);
+    return res.status(500).json({ error: 'Erro interno ao consultar vendas' });
+  }
+};
+
 export const checkoutSale = async (req, res) => {
   const { items, paymentMethod } = req.body; // Array de itens: [{ product_id, quantity, price }]
 
@@ -40,7 +96,10 @@ export const checkoutSale = async (req, res) => {
     // =========================================================================
     for (const item of items) {
       const [stockRows] = await connection.query(
-        'SELECT current_quantity FROM stock WHERE product_id = ? FOR UPDATE',
+        `SELECT s.current_quantity, p.price, p.promo_price, p.is_promo 
+         FROM stock s
+         JOIN products p ON s.product_id = p.id 
+         WHERE s.product_id = ? FOR UPDATE`,
         [item.product_id]
       );
 
@@ -48,15 +107,22 @@ export const checkoutSale = async (req, res) => {
         throw new Error(`Produto ID ${item.product_id} não possui registro de estoque.`);
       }
 
-      const currentQuantity = stockRows[0].current_quantity;
+      const dbProduct = stockRows[0];
+      const currentQuantity = dbProduct.current_quantity;
 
       if (currentQuantity < item.quantity) {
-        // Se qualquer um dos itens tiver estoque insuficiente, abortamos toda a transação
         throw new Error(`Estoque insuficiente para o produto ID ${item.product_id}. Disponível: ${currentQuantity}, Solicitado: ${item.quantity}`);
       }
 
+      // Determinar o preço real (verificando promoção) no backend por segurança
+      const realPrice = dbProduct.is_promo && dbProduct.promo_price !== null
+        ? parseFloat(dbProduct.promo_price)
+        : parseFloat(dbProduct.price);
+        
+      item.price = realPrice; // Substitui o preço enviado pelo client para salvar no histórico
+
       // Calcula o subtotal acumulado do pedido
-      totalValue += item.price * item.quantity;
+      totalValue += realPrice * item.quantity;
     }
 
     // 3. DEDUÇÃO DO ESTOQUE (UPDATE)
