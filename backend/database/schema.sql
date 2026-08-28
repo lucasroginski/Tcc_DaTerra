@@ -64,7 +64,13 @@ CREATE TABLE IF NOT EXISTS sales (
     id INT AUTO_INCREMENT PRIMARY KEY,
     sale_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     total_value DECIMAL(10, 2) NOT NULL,
-    payment_method ENUM('pix', 'cash') NOT NULL
+    payment_method ENUM('pix', 'cash') NOT NULL,
+    tipo_entrega VARCHAR(50) DEFAULT 'fiorino',
+    valor_frete DECIMAL(10, 2) DEFAULT 0.00,
+    client_name VARCHAR(100) DEFAULT '',
+    client_phone VARCHAR(20) DEFAULT '',
+    delivery_address VARCHAR(255) DEFAULT '',
+    delivery_status ENUM('pendente', 'em_rota', 'entregue') DEFAULT 'pendente'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 5. TABELA DE ITENS DE VENDA (Detalhe - Relação N:M)
