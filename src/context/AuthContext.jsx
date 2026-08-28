@@ -8,8 +8,7 @@
 // gera acoplamento ruim. O Context API resolve isso disponibilizando dados de
 // sessão de maneira uniforme e reativa para qualquer tela que precise.
 
-import React, { createContext, useContext, useState } from 'react';
-import { initialUsers, initialActivities } from '../data/mockUsers';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext();
 
@@ -22,11 +21,31 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-
-  const [users, setUsers] = useState(initialUsers);
-  const [activities, setActivities] = useState(initialActivities);
+  const [activities, setActivities] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const fetchActivities = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/activities');
+      if (response.ok) {
+        const data = await response.json();
+        setActivities(data);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar atividades:', error);
+    }
+  };
+
+  // Load user from localStorage on mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem('currentUser');
+    if (storedUser) {
+      setCurrentUser(JSON.parse(storedUser));
+      setIsAuthenticated(true);
+    }
+    fetchActivities();
+  }, []);
 
   // Auth Modal State
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -62,6 +81,7 @@ export const AuthProvider = ({ children }) => {
 
     const createdDate = new Date(user.createdAt);
     const today = new Date();
+    const diffTime = today - createdDate;
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     
     return Math.max(0, 15 - diffDays);
@@ -76,37 +96,51 @@ export const AuthProvider = ({ children }) => {
   // ou pagar avulso por capacidade excedente.
 
   // Upgrade do Produtor para Plano VIP (R$ 10,00/mês)
-  const upgradeToVip = () => {
+  const upgradeToVip = async () => {
     if (!currentUser) return { success: false, error: 'Usuário não autenticado' };
 
-    const updatedUser = {
-      ...currentUser,
-      plan: 'vip',
-      productLimit: Math.max(10, (currentUser.productLimit || 0))
-    };
-
-    setCurrentUser(updatedUser);
-    setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
-    logActivity(currentUser.id, currentUser.name, 'upgrade_vip', 'Assinou o Plano VIP (R$ 10,00/mês)');
-    
-    return { success: true, user: updatedUser };
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${currentUser.id}/upgrade`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: 'vip' })
+      });
+      
+      const updatedUser = await response.json();
+      if (response.ok) {
+        setCurrentUser(updatedUser);
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+        await logActivity(currentUser.id, currentUser.name, 'upgrade_vip', 'Assinou o Plano VIP (R$ 10,00/mês)');
+        return { success: true, user: updatedUser };
+      }
+      return { success: false, error: updatedUser.error };
+    } catch (error) {
+      return { success: false, error: 'Erro de conexão' };
+    }
   };
 
   // Compra avulsa de limite de capacidade (+10 produtos por R$ 5,00)
-  const addExtraLimit = (extraAmount = 10) => {
+  const addExtraLimit = async (extraAmount = 10) => {
     if (!currentUser) return { success: false, error: 'Usuário não autenticado' };
 
-    const currentLimit = currentUser.productLimit || 10;
-    const updatedUser = {
-      ...currentUser,
-      productLimit: currentLimit + extraAmount
-    };
-
-    setCurrentUser(updatedUser);
-    setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
-    logActivity(currentUser.id, currentUser.name, 'buy_limit', `Comprou limite extra (+${extraAmount} produtos)`);
-
-    return { success: true, user: updatedUser };
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${currentUser.id}/upgrade`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extraLimit: extraAmount })
+      });
+      
+      const updatedUser = await response.json();
+      if (response.ok) {
+        setCurrentUser(updatedUser);
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+        await logActivity(currentUser.id, currentUser.name, 'buy_limit', `Comprou limite extra (+${extraAmount} produtos)`);
+        return { success: true, user: updatedUser };
+      }
+      return { success: false, error: updatedUser.error };
+    } catch (error) {
+      return { success: false, error: 'Erro de conexão' };
+    }
   };
 
   // =========================================================================
@@ -117,18 +151,28 @@ export const AuthProvider = ({ children }) => {
   // que o produtor poderá visualizar no dashboard.
 
   // Login
-  const login = (email, password) => {
-    const user = users.find(u => u.email === email && u.password === password);
-    if (user) {
-      setCurrentUser(user);
-      setIsAuthenticated(true);
-      closeAuthModal();
-      
-      // Registro de Auditoria / Atividade
-      logActivity(user.id, user.name, 'login', 'Usuário fez login');
-      return { success: true, user };
+  const login = async (email, password) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        setCurrentUser(data);
+        setIsAuthenticated(true);
+        localStorage.setItem('currentUser', JSON.stringify(data));
+        closeAuthModal();
+        logActivity(data.id, data.name, 'login', 'Usuário fez login');
+        return { success: true, user: data };
+      } else {
+        return { success: false, error: data.error };
+      }
+    } catch (error) {
+      return { success: false, error: 'Erro ao conectar com o servidor' };
     }
-    return { success: false, error: 'Email ou senha incorretos' };
   };
 
   // Logout
@@ -138,35 +182,37 @@ export const AuthProvider = ({ children }) => {
     }
     setCurrentUser(null);
     setIsAuthenticated(false);
+    localStorage.removeItem('currentUser');
     closePlansModal();
   };
 
   // Registro de nova conta
-  const register = (name, email, password, role = 'client') => {
-    if (users.find(u => u.email === email)) {
-      return { success: false, error: 'Email já cadastrado' };
+  const register = async (name, email, password, role = 'client') => {
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password, role })
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        // Auto-login logic
+        const newUser = {
+          id: data.userId, name, email, role, plan: 'free', productLimit: role === 'producer' ? 10 : 0
+        };
+        setCurrentUser(newUser);
+        setIsAuthenticated(true);
+        localStorage.setItem('currentUser', JSON.stringify(newUser));
+        closeAuthModal();
+        logActivity(data.userId, name, 'register', 'Novo usuário cadastrado');
+        return { success: true, user: newUser };
+      } else {
+        return { success: false, error: data.error };
+      }
+    } catch (error) {
+      return { success: false, error: 'Erro ao conectar com o servidor' };
     }
-
-    const newUser = {
-      id: Math.max(...users.map(u => u.id), 0) + 1,
-      name,
-      email,
-      password,
-      role,
-      createdAt: new Date().toISOString().split('T')[0],
-      plan: 'free',
-      productLimit: role === 'producer' ? 10 : 0
-    };
-
-    setUsers([...users, newUser]);
-    setCurrentUser(newUser);
-    setIsAuthenticated(true);
-    closeAuthModal();
-    
-    // Registro de Auditoria / Atividade
-    logActivity(newUser.id, newUser.name, 'register', 'Novo usuário cadastrado');
-    
-    return { success: true, user: newUser };
   };
 
   // =========================================================================
@@ -174,16 +220,19 @@ export const AuthProvider = ({ children }) => {
   // =========================================================================
   // O que faz: Registra as ações cruciais de clientes no sistema.
   // Permite ao Produtor ver na Timeline o comportamento de navegação (visualizou, comprou).
-  const logActivity = (userId, userName, action, details) => {
-    const newActivity = {
-      id: Math.max(...activities.map(a => a.id), 0) + 1,
-      userId,
-      userName,
-      action,
-      details,
-      timestamp: new Date().toISOString()
-    };
-    setActivities([newActivity, ...activities]);
+  const logActivity = async (userId, userName, action, details) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/activities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, userName, action, details })
+      });
+      if (response.ok) {
+        fetchActivities();
+      }
+    } catch (error) {
+      console.error('Erro ao registrar atividade:', error);
+    }
   };
 
   // Get activities for a specific user (for producers to see)
@@ -198,7 +247,7 @@ export const AuthProvider = ({ children }) => {
 
   // Get all clients (for producers)
   const getAllClients = () => {
-    return users.filter(u => u.role === 'client');
+    return []; // Funcionalidade de listar todos clientes (somente mock)
   };
 
   // Check if current user is admin
@@ -217,7 +266,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = {
-    users,
+    users: [],
     activities,
     currentUser,
     isAuthenticated,

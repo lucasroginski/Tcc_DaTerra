@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { Package, Plus, X, Calendar, Edit2, Check, AlertTriangle, Crown, ShieldCheck, Trash2 } from 'lucide-react';
 
 const Inventory = () => {
-  const { products, stock, getProductStock, addStock, addProduct, updateProduct, deleteProduct } = useApp();
+  const { products, getProductStock, addStock, addProduct, updateProduct, deleteProduct } = useApp();
   const { currentUser, openPlansModal, isAdmin } = useAuth();
   
   const [showAddProduct, setShowAddProduct] = useState(false);
@@ -24,7 +24,7 @@ const Inventory = () => {
   const [editingProduct, setEditingProduct] = useState(null); // { id, name, category, price }
   const [showLimitAlert, setShowLimitAlert] = useState(false);
 
-  const [newProduct, setNewProduct] = useState({ name: '', category: '', price: '' });
+  const [newProduct, setNewProduct] = useState({ name: '', category: '', price: '', isPromo: false, promoPrice: '' });
   const [stockToAdd, setStockToAdd] = useState({ quantity: '', harvestDate: '' });
 
   const productLimit = currentUser?.productLimit || 10;
@@ -94,7 +94,14 @@ const Inventory = () => {
   };
 
   const getStockItem = (productId) => {
-    return stock.find(s => s.product_id === productId);
+    const product = products.find(p => p.id === productId);
+    if (product && product.current_quantity !== null) {
+      return { 
+        current_quantity: product.current_quantity, 
+        harvest_date: product.harvest_date 
+      };
+    }
+    return null;
   };
 
   return (
@@ -202,6 +209,31 @@ const Inventory = () => {
                   />
                 </div>
               </div>
+              <div className="bg-sage-50 p-3 rounded-xl border border-sage-100 flex flex-col gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newProduct.isPromo}
+                    onChange={(e) => setNewProduct({ ...newProduct, isPromo: e.target.checked })}
+                    className="w-4 h-4 text-sage-600 rounded border-gray-300 focus:ring-sage-500"
+                  />
+                  <span className="text-sm font-semibold text-sage-800">Ativar Promoção</span>
+                </label>
+                {newProduct.isPromo && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Preço Promocional (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={newProduct.promoPrice}
+                      onChange={(e) => setNewProduct({ ...newProduct, promoPrice: e.target.value })}
+                      className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sage-500"
+                      required
+                    />
+                  </div>
+                )}
+              </div>
               <button
                 type="submit"
                 className="w-full bg-sage-500 hover:bg-sage-600 text-white rounded-xl p-3 transition-colors font-semibold text-sm shadow-sm mt-2"
@@ -260,7 +292,33 @@ const Inventory = () => {
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-1">
+              <div className="bg-honey-50 p-3 rounded-xl border border-honey-100 flex flex-col gap-3 mt-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editingProduct.isPromo || false}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, isPromo: e.target.checked })}
+                    className="w-4 h-4 text-honey-600 rounded border-gray-300 focus:ring-honey-500"
+                  />
+                  <span className="text-sm font-semibold text-honey-900">Em Promoção</span>
+                </label>
+                {editingProduct.isPromo && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Preço Promocional (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={editingProduct.promoPrice || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, promoPrice: e.target.value })}
+                      className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-honey-500"
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setEditingProduct(null)}
@@ -294,12 +352,23 @@ const Inventory = () => {
                     <div className="flex items-center gap-2 mb-1">
                       <Package className="text-sage-500" size={18} />
                       <h3 className="font-bold text-sage-800">{product.name}</h3>
+                      {product.is_promo && (
+                        <span className="bg-honey-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider animate-pulse">
+                          Promoção
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs font-medium text-sage-600 mb-2">{product.category}</p>
                     <div className="flex items-center gap-4 text-xs">
                       <div>
-                        <span className="text-gray-500">Preço: </span>
-                        <span className="font-bold text-honey-600">R$ {product.price.toFixed(2)}</span>
+                        {product.is_promo && product.promo_price ? (
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-black text-honey-600">R$ {parseFloat(product.promo_price).toFixed(2)}</p>
+                            <p className="text-[10px] text-gray-400 line-through">R$ {product.price.toFixed(2)}</p>
+                          </div>
+                        ) : (
+                          <p className="text-sm font-black text-sage-600">R$ {product.price.toFixed(2)}</p>
+                        )}
                       </div>
                       <div>
                         <span className="text-gray-500">Estoque: </span>
@@ -345,11 +414,18 @@ const Inventory = () => {
                 {/* Add Stock Modal inline */}
                 {showAddStock === product.id && (
                   <div className="mt-4 pt-4 border-t border-gray-200 animate-fadeIn">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-bold text-sage-700 text-xs">Adicionar Estoque</h4>
-                      <button onClick={() => setShowAddStock(null)}>
-                        <X size={16} className="text-gray-400" />
-                      </button>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-sage-800 text-sm">{product.name}</h4>
+                        {product.is_promo && (
+                          <span className="bg-honey-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider animate-pulse">
+                            Promoção
+                          </span>
+                        )}
+                      </div>
+                      <span className="bg-sage-100 text-sage-700 text-xs px-2 py-1 rounded-md font-medium">
+                        {product.category}
+                      </span>
                     </div>
                     <div className="flex gap-2">
                       <input

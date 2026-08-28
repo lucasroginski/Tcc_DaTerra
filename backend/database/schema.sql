@@ -6,6 +6,7 @@
 -- chaves primárias (PK), chaves estrangeiras (FK) para integridade referencial,
 -- e tipos de dados apropriados para garantir eficiência.
 
+DROP DATABASE IF EXISTS daterra_db;
 CREATE DATABASE IF NOT EXISTS daterra_db;
 USE daterra_db;
 
@@ -34,7 +35,11 @@ CREATE TABLE IF NOT EXISTS products (
     name VARCHAR(150) NOT NULL,
     category VARCHAR(100) NOT NULL,
     price DECIMAL(10, 2) NOT NULL, -- DECIMAL evita problemas de precisão de floats
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    promo_price DECIMAL(10, 2) NULL, -- Preço com desconto promocional
+    is_promo BOOLEAN DEFAULT FALSE, -- Flag para indicar se a oferta está ativa
+    producer_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (producer_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 3. TABELA DE ESTOQUE (Relação 1:1 com Products)
@@ -104,11 +109,11 @@ INSERT INTO users (name, email, password, role, plan, product_limit) VALUES
 ('Ana Martins', 'ana@email.com', 'cliente123', 'client', 'free', 0);
 
 -- Inserir Produtos Iniciais
-INSERT INTO products (name, category, price) VALUES
-('Mel Silvestre Orgânico 500g', 'Mel e Derivados', 35.00),
-('Alface Crespa Orgânica Maço', 'Hortifruti', 4.50),
-('Tomate Italiano Orgânico 1kg', 'Hortifruti', 12.00),
-('Queijo Minas Artesanal 600g', 'Laticínios', 28.00);
+INSERT INTO products (name, category, price, producer_id) VALUES
+('Mel Silvestre Orgânico 500g', 'Mel e Derivados', 35.00, 1),
+('Alface Crespa Orgânica Maço', 'Hortifruti', 4.50, 1),
+('Tomate Italiano Orgânico 1kg', 'Hortifruti', 12.00, 2),
+('Queijo Minas Artesanal 600g', 'Laticínios', 28.00, 2);
 
 -- Inserir Estoque Associado (IDs 1, 2, 3, 4)
 INSERT INTO stock (product_id, current_quantity, harvest_date) VALUES

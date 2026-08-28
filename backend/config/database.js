@@ -17,6 +17,7 @@ const pool = mysql.createPool({
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'daterra_db',
+  port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10, // Máximo de conexões simultâneas ativas no pool
   queueLimit: 0        // Sem limites para a fila de conexões aguardando liberação

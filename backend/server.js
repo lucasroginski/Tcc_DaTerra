@@ -9,8 +9,11 @@
 
 import express from 'express';
 import cors from 'cors';
-import { listProducts, createProduct } from './controllers/productController.js';
-import { checkoutSale } from './controllers/saleController.js';
+import { listProducts, createProduct, updateProduct, deleteProduct, updateStock } from './controllers/productController.js';
+import { checkoutSale, getSales } from './controllers/saleController.js';
+import { login, register, upgradePlan } from './controllers/authController.js';
+import { logActivity, getActivities } from './controllers/activityController.js';
+import { getProducerReport } from './controllers/reportController.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -28,6 +31,11 @@ app.use(express.json());
 //                              ROTAS DA API REST
 // =========================================================================
 
+// Rotas de Autenticação e Usuários
+app.post('/api/auth/login', login);
+app.post('/api/auth/register', register);
+app.put('/api/users/:id/upgrade', upgradePlan);
+
 // Rota de Catálogo: Listagem geral de produtos com quantidades em estoque
 // GET /api/products
 app.get('/api/products', listProducts);
@@ -36,9 +44,26 @@ app.get('/api/products', listProducts);
 // POST /api/products
 app.post('/api/products', createProduct);
 
+// Edição e Deleção de Produto
+app.put('/api/products/:id', updateProduct);
+app.delete('/api/products/:id', deleteProduct);
+
+// Reposição de Estoque
+app.put('/api/products/:id/stock', updateStock);
+
 // Rota de Transação de Checkout: Venda atômica com baixa no estoque e rollback
 // POST /api/sales
 app.post('/api/sales', checkoutSale);
+
+// GET /api/sales - Buscar vendas
+app.get('/api/sales', getSales);
+
+// Rotas de Atividades (Auditoria)
+app.post('/api/activities', logActivity);
+app.get('/api/activities', getActivities);
+
+// Rotas de Relatórios (Producer)
+app.get('/api/reports/producer/:id', getProducerReport);
 
 // Middleware para tratamento global de erros (Fallback final de segurança)
 app.use((err, req, res, next) => {

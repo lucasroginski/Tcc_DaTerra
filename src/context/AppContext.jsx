@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
-import { initialProducts, initialStock, initialSales } from '../data/mockData';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
 const AppContext = createContext();
 
@@ -12,10 +12,53 @@ export const useApp = () => {
 };
 
 export const AppProvider = ({ children }) => {
-  const [products, setProducts] = useState(initialProducts);
-  const [stock, setStock] = useState(initialStock);
-  const [sales, setSales] = useState(initialSales);
+  const { currentUser } = useAuth();
+  const [products, setProducts] = useState([]);
+  const [sales, setSales] = useState([]);
   const [currentScreen, setCurrentScreen] = useState('catalog');
+
+  // Load products from API
+  const fetchProducts = async () => {
+    try {
+      let url = 'http://localhost:5000/api/products';
+      if (currentUser?.role === 'producer') {
+        url += `?producerId=${currentUser.id}`;
+      }
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      const formattedData = data.map(product => ({
+        ...product,
+        price: parseFloat(product.price),
+        promo_price: product.promo_price ? parseFloat(product.promo_price) : null
+      }));
+      
+      setProducts(formattedData);
+    } catch (error) {
+      console.error('Erro ao buscar produtos:', error);
+    }
+  };
+
+  const fetchSales = async () => {
+    try {
+      let url = 'http://localhost:5000/api/sales';
+      if (currentUser?.role === 'producer') {
+        url += `?producerId=${currentUser.id}`;
+      }
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        setSales(data);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar vendas:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+    fetchSales();
+  }, [currentUser]);
 
   // E-commerce Cart & Drawer State
   const [cart, setCart] = useState([]);
@@ -23,57 +66,66 @@ export const AppProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
 
   // Add new product
-  const addProduct = (product) => {
-    const newProduct = {
-      ...product,
-      id: Math.max(...products.map(p => p.id), 0) + 1
-    };
-    setProducts([...products, newProduct]);
-    
-    // Add initial stock for the new product
-    const newStock = {
-      id: Math.max(...stock.map(s => s.id), 0) + 1,
-      product_id: newProduct.id,
-      current_quantity: 0,
-      harvest_date: new Date().toISOString().split('T')[0]
-    };
-    setStock([...stock, newStock]);
+  const addProduct = async (product) => {
+    if (!currentUser) return;
+    try {
+      const response = await fetch('http://localhost:5000/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: product.name,
+          category: product.category,
+          price: product.price,
+          isPromo: product.isPromo,
+          promoPrice: product.promoPrice,
+          producerId: currentUser.id
+        })
+      });
+      if (response.ok) {
+        fetchProducts(); // Refresh list
+      }
+    } catch (error) {
+      console.error('Erro ao adicionar produto:', error);
+    }
   };
 
   // Update existing product
-  const updateProduct = (productId, updatedData) => {
-    setProducts(products.map(p => {
-      if (p.id === productId) {
-        return {
-          ...p,
+  const updateProduct = async (productId, updatedData) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/products/${productId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           name: updatedData.name,
           category: updatedData.category,
-          price: parseFloat(updatedData.price)
-        };
+          price: updatedData.price,
+          isPromo: updatedData.isPromo,
+          promoPrice: updatedData.promoPrice
+        })
+      });
+      if (response.ok) {
+        fetchProducts();
       }
-      return p;
-    }));
+    } catch (error) {
+      console.error('Erro ao atualizar produto:', error);
+    }
   };
 
   // Delete product and its associated stock
-  const deleteProduct = (productId) => {
-    setProducts(products.filter(p => p.id !== productId));
-    setStock(stock.filter(s => s.product_id !== productId));
+  const deleteProduct = async (productId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/products/${productId}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        fetchProducts();
+      }
+    } catch (error) {
+      console.error('Erro ao deletar produto:', error);
+    }
   };
 
-  // Add stock to a product
-  const addStock = (productId, quantity, harvestDate) => {
-    setStock(stock.map(item => {
-      if (item.product_id === productId) {
-        return {
-          ...item,
-          current_quantity: item.current_quantity + quantity,
-          harvest_date: harvestDate || item.harvest_date
-        };
-      }
-      return item;
-    }));
-  };
+
 
   // E-commerce Cart Operations
   const addToCart = (product, quantity = 1) => {
@@ -135,71 +187,75 @@ export const AppProvider = ({ children }) => {
   };
 
   // Create a new sale
-  const createSale = (saleItems = cart) => {
-    // Check if all items have sufficient stock
-    for (const item of saleItems) {
-      const stockItem = stock.find(s => s.product_id === item.product_id);
-      if (!stockItem || stockItem.current_quantity < item.quantity) {
-        throw new Error(`Estoque insuficiente para ${item.product_name}`);
-      }
+  const createSale = async (saleItems = cart, paymentMethod = 'pix') => {
+    try {
+      // Calculate total value for notification
+      const totalValue = saleItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+      const response = await fetch('http://localhost:5000/api/sales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: saleItems, paymentMethod })
+      });
+      
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Erro ao finalizar venda');
+
+      // Refresh data from server
+      await fetchProducts();
+      await fetchSales();
+
+      // Add sale notification
+      const itemsSummary = saleItems.map(item => `${item.quantity}x ${item.product_name}`).join(', ');
+      const newNotif = {
+        id: Date.now(),
+        title: 'Nova Venda Recebida! 💰',
+        message: `Total: R$ ${totalValue.toFixed(2)} - Itens: ${itemsSummary}`,
+        type: 'sale',
+        timestamp: new Date().toISOString(),
+        read: false
+      };
+      setNotifications(prev => [newNotif, ...prev]);
+
+      return data;
+    } catch (error) {
+      console.error('Erro ao finalizar venda:', error);
+      throw error;
     }
+  };
 
-    // Calculate total value
-    const totalValue = saleItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-    // Create sale record
-    const newSale = {
-      id: Math.max(...sales.map(s => s.id), 0) + 1,
-      date: new Date().toISOString().split('T')[0],
-      total_value: totalValue,
-      items: saleItems
-    };
-
-    // Update stock
-    const updatedStock = stock.map(item => {
-      const saleItem = saleItems.find(s => s.product_id === item.product_id);
-      if (saleItem) {
-        return {
-          ...item,
-          current_quantity: item.current_quantity - saleItem.quantity
-        };
+  // Add stock to a product
+  const addStock = async (productId, quantity, harvestDate) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/products/${productId}/stock`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity, harvestDate })
+      });
+      if (response.ok) {
+        await fetchProducts();
       }
-      return item;
-    });
-
-    setSales([...sales, newSale]);
-    setStock(updatedStock);
-
-    // Add sale notification
-    const itemsSummary = saleItems.map(item => `${item.quantity}x ${item.product_name}`).join(', ');
-    const newNotif = {
-      id: Date.now(),
-      title: 'Nova Venda Recebida! 💰',
-      message: `Total: R$ ${totalValue.toFixed(2)} - Itens: ${itemsSummary}`,
-      type: 'sale',
-      timestamp: new Date().toISOString(),
-      read: false
-    };
-    setNotifications(prev => [newNotif, ...prev]);
-
-    return newSale;
+    } catch (error) {
+      console.error('Erro ao adicionar estoque:', error);
+    }
   };
 
   // Get stock for a product
   const getProductStock = (productId) => {
-    const stockItem = stock.find(s => s.product_id === productId);
-    return stockItem ? stockItem.current_quantity : 0;
+    const product = products.find(p => p.id === productId);
+    return product ? product.current_quantity : 0;
   };
 
   // Get low stock items (less than 5 units)
   const getLowStockItems = () => {
-    return stock.filter(item => item.current_quantity < 5).map(item => {
-      const product = products.find(p => p.id === item.product_id);
-      return {
-        ...item,
-        product_name: product ? product.name : 'Produto desconhecido'
-      };
-    });
+    return products
+      .filter(item => item.current_quantity !== undefined && item.current_quantity !== null && item.current_quantity < 5)
+      .map(item => ({
+        product_id: item.id,
+        current_quantity: item.current_quantity,
+        harvest_date: item.harvest_date,
+        product_name: item.name
+      }));
   };
 
   // Get monthly sales revenue
@@ -216,7 +272,6 @@ export const AppProvider = ({ children }) => {
 
   const value = {
     products,
-    stock,
     sales,
     currentScreen,
     cart,
