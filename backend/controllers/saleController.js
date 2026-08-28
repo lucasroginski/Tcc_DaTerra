@@ -68,7 +68,7 @@ export const getSales = async (req, res) => {
 };
 
 export const checkoutSale = async (req, res) => {
-  const { items, paymentMethod } = req.body; // Array de itens: [{ product_id, quantity, price }]
+  const { items, paymentMethod, deliveryMethod = 'fiorino', freightValue = 0, clientName = '', clientPhone = '', deliveryAddress = '' } = req.body; // Array de itens: [{ product_id, quantity, price }]
 
   if (!items || items.length === 0 || !paymentMethod) {
     return res.status(400).json({ error: 'Carrinho de compras vazio ou dados ausentes' });
@@ -138,11 +138,13 @@ export const checkoutSale = async (req, res) => {
 
     // 4. REGISTRO DO CABEÇALHO DA VENDA (INSERT SALES)
     // =========================================================================
-    // Salvamos a data, valor total e método de pagamento.
+    // Salvamos a data, valor total (incluindo frete), método de pagamento e dados de entrega.
     // =========================================================================
+    totalValue += Number(freightValue);
+
     const [saleResult] = await connection.query(
-      'INSERT INTO sales (total_value, payment_method) VALUES (?, ?)',
-      [totalValue, paymentMethod]
+      'INSERT INTO sales (total_value, payment_method, tipo_entrega, valor_frete, client_name, client_phone, delivery_address) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [totalValue, paymentMethod, deliveryMethod, freightValue, clientName, clientPhone, deliveryAddress]
     );
     const saleId = saleResult.insertId;
 
@@ -197,5 +199,64 @@ export const checkoutSale = async (req, res) => {
     if (connection) {
       connection.release();
     }
+  }
+};
+
+export const getDeliveries = async (req, res) => {
+  const { producerId } = req.params;
+  try {
+    const query = `
+      SELECT 
+        s.id as sale_id, s.sale_date, s.total_value, s.payment_method,
+        s.tipo_entrega, s.valor_frete, s.client_name, s.client_phone, s.delivery_address, s.delivery_status,
+        si.quantity, si.unit_price as price,
+        p.name as product_name
+      FROM sales s
+      JOIN sale_items si ON s.id = si.sale_id
+      JOIN products p ON si.product_id = p.id
+      WHERE p.producer_id = ?
+      ORDER BY s.sale_date DESC
+    `;
+    const [rows] = await db.query(query, [producerId]);
+    
+    const deliveriesMap = {};
+    for (const row of rows) {
+      if (!deliveriesMap[row.sale_id]) {
+        deliveriesMap[row.sale_id] = {
+          id: row.sale_id,
+          date: row.sale_date,
+          total_value: parseFloat(row.total_value),
+          payment_method: row.payment_method,
+          tipo_entrega: row.tipo_entrega,
+          valor_frete: parseFloat(row.valor_frete),
+          client_name: row.client_name,
+          client_phone: row.client_phone,
+          delivery_address: row.delivery_address,
+          delivery_status: row.delivery_status,
+          items: []
+        };
+      }
+      deliveriesMap[row.sale_id].items.push({
+        product_name: row.product_name,
+        quantity: row.quantity,
+        price: parseFloat(row.price)
+      });
+    }
+    return res.status(200).json(Object.values(deliveriesMap));
+  } catch (error) {
+    console.error('Erro ao buscar entregas:', error);
+    return res.status(500).json({ error: 'Erro interno ao consultar entregas' });
+  }
+};
+
+export const updateDeliveryStatus = async (req, res) => {
+  const { pedido_id } = req.params;
+  const { status } = req.body;
+  try {
+    await db.query('UPDATE sales SET delivery_status = ? WHERE id = ?', [status, pedido_id]);
+    return res.status(200).json({ success: true, message: 'Status atualizado com sucesso' });
+  } catch (error) {
+    console.error('Erro ao atualizar status da entrega:', error);
+    return res.status(500).json({ error: 'Erro ao atualizar status' });
   }
 };

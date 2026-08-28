@@ -187,15 +187,16 @@ export const AppProvider = ({ children }) => {
   };
 
   // Create a new sale
-  const createSale = async (saleItems = cart, paymentMethod = 'pix') => {
+  const createSale = async (saleItems = cart, paymentMethod = 'pix', deliveryMethod = 'fiorino', freightValue = 0, clientName = '', clientPhone = '', deliveryAddress = '') => {
     try {
       // Calculate total value for notification
-      const totalValue = saleItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const subtotal = saleItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const totalValue = subtotal + Number(freightValue);
 
       const response = await fetch('http://localhost:5000/api/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: saleItems, paymentMethod })
+        body: JSON.stringify({ items: saleItems, paymentMethod, deliveryMethod, freightValue, clientName, clientPhone, deliveryAddress })
       });
       
       const data = await response.json();
@@ -270,6 +271,33 @@ export const AppProvider = ({ children }) => {
     return sales.length;
   };
 
+  // Delivery Management
+  const fetchDeliveries = async (producerId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/entregas/produtor/${producerId}`);
+      if (!response.ok) throw new Error('Falha ao buscar entregas');
+      return await response.json();
+    } catch (error) {
+      console.error('Erro ao buscar entregas:', error);
+      throw error;
+    }
+  };
+
+  const changeDeliveryStatus = async (saleId, status) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/entregas/${saleId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      if (!response.ok) throw new Error('Falha ao atualizar status');
+      return await response.json();
+    } catch (error) {
+      console.error('Erro ao atualizar status da entrega:', error);
+      throw error;
+    }
+  };
+
   const value = {
     products,
     sales,
@@ -293,6 +321,8 @@ export const AppProvider = ({ children }) => {
     getLowStockItems,
     getMonthlyRevenue,
     getTotalSalesCount,
+    fetchDeliveries,
+    changeDeliveryStatus,
     notifications,
     setNotifications
   };

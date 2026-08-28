@@ -29,7 +29,10 @@ import {
   CheckCircle2,
   Leaf,
   Store,
-  ChevronRight
+  ChevronRight,
+  Truck,
+  Bike,
+  PackageCheck
 } from 'lucide-react';
 
 const Catalog = () => {
@@ -56,6 +59,10 @@ const Catalog = () => {
   // Checkout modal states
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('pix'); // 'pix' or 'cash'
+  const [deliveryMethod, setDeliveryMethod] = useState('fiorino'); // 'fiorino' or 'moto'
+  const [clientName, setClientName] = useState(currentUser?.name || '');
+  const [clientPhone, setClientPhone] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
   const [cashChangeNeeded, setCashChangeNeeded] = useState('');
   const [pixCopied, setPixCopied] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -112,7 +119,15 @@ const Catalog = () => {
   // Confirm Sale in Checkout Modal
   const handleConfirmOrder = () => {
     try {
-      createSale(cart);
+      const subtotal = getTotalCartPrice();
+      const freightValue = deliveryMethod === 'moto' ? 10 : (subtotal >= 30 ? 0 : 2);
+      
+      if (!clientName || !clientPhone || !deliveryAddress) {
+        alert('Por favor, preencha todos os dados de entrega (Nome, Telefone e Endereço).');
+        return;
+      }
+
+      createSale(cart, paymentMethod, deliveryMethod, freightValue, clientName, clientPhone, deliveryAddress);
 
       if (isClient() && currentUser) {
         const itemsSummary = cart.map(item => `${item.product_name} (${item.quantity}x)`).join(', ');
@@ -154,6 +169,12 @@ const Catalog = () => {
         return { bg: 'from-sage-600 to-sage-800', icon: '🌱', label: 'Colheita Fresta' };
     }
   };
+
+  // E-commerce Freight Calculations
+  const subtotal = getTotalCartPrice();
+  const freightValue = deliveryMethod === 'moto' ? 10 : (subtotal >= 30 ? 0 : 2);
+  const totalFinal = subtotal + freightValue;
+  const amountToFreeShipping = 30 - subtotal;
 
   return (
     <div className="min-h-screen bg-sage-50 pb-28">
@@ -482,13 +503,37 @@ const Catalog = () => {
             {/* Drawer Subtotal & Finalizar Pedido Button */}
             {cart.length > 0 && (
               <div className="p-5 border-t border-gray-200 bg-white space-y-3">
+                
+                {/* Progress Bar Fiorino */}
+                {deliveryMethod === 'fiorino' && (
+                  <div className="bg-sage-50 p-3 rounded-xl border border-sage-200">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Truck size={14} className="text-sage-600" />
+                      <span className="text-xs font-bold text-sage-800">
+                        {amountToFreeShipping > 0 ? `Faltam R$ ${amountToFreeShipping.toFixed(2)} para Frete Grátis!` : 'Você ganhou Frete Grátis! 🎉'}
+                      </span>
+                    </div>
+                    {amountToFreeShipping > 0 && (
+                      <div className="w-full bg-sage-200 rounded-full h-1.5">
+                        <div className="bg-sage-500 h-1.5 rounded-full transition-all" style={{ width: `${Math.min((subtotal / 30) * 100, 100)}%` }}></div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500 font-medium">Subtotal dos produtos</span>
-                  <span className="font-bold text-sage-800">R$ {getTotalCartPrice().toFixed(2)}</span>
+                  <span className="font-bold text-sage-800">R$ {subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500 font-medium">Frete ({deliveryMethod === 'fiorino' ? 'Fiorino' : 'Moto'})</span>
+                  <span className="font-bold text-sage-800">
+                    {freightValue === 0 ? <span className="text-green-600">Grátis</span> : `R$ ${freightValue.toFixed(2)}`}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-lg font-bold text-sage-900 border-t pt-2">
                   <span>Total</span>
-                  <span className="text-honey-600">R$ {getTotalCartPrice().toFixed(2)}</span>
+                  <span className="text-honey-600">R$ {totalFinal.toFixed(2)}</span>
                 </div>
 
                 {!isAuthenticated && (
@@ -543,9 +588,100 @@ const Catalog = () => {
                     </div>
                   ))}
                 </div>
-                <div className="border-t border-sage-200 mt-3 pt-2 flex justify-between font-bold text-sm text-sage-900">
+                <div className="border-t border-sage-200 mt-2 pt-2 flex justify-between text-sm text-sage-700">
+                  <span>Subtotal:</span>
+                  <span className="font-bold">R$ {subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-sage-700">
+                  <span>Frete ({deliveryMethod === 'fiorino' ? 'Fiorino' : 'Moto Express'}):</span>
+                  <span className="font-bold">
+                    {freightValue === 0 ? <span className="text-green-600">Grátis</span> : `R$ ${freightValue.toFixed(2)}`}
+                  </span>
+                </div>
+                <div className="border-t border-sage-200 mt-2 pt-2 flex justify-between font-bold text-sm text-sage-900">
                   <span>Valor Total:</span>
-                  <span className="text-honey-600">R$ {getTotalCartPrice().toFixed(2)}</span>
+                  <span className="text-honey-600">R$ {totalFinal.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Client Delivery Info */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Dados de Entrega</label>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Seu Nome Completo"
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    className="w-full p-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-sage-500 bg-gray-50"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Seu Telefone / WhatsApp"
+                    value={clientPhone}
+                    onChange={(e) => setClientPhone(e.target.value)}
+                    className="w-full p-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-sage-500 bg-gray-50"
+                  />
+                  <textarea
+                    placeholder="Endereço de Entrega (Rua, Número, Bairro, Referência)"
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    rows={2}
+                    className="w-full p-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-sage-500 bg-gray-50 resize-none"
+                  ></textarea>
+                </div>
+              </div>
+
+              {/* Delivery Method Selector */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">Opções de Entrega</label>
+                <div className="grid grid-cols-1 gap-3">
+                  
+                  {/* Fiorino Option */}
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryMethod('fiorino')}
+                    className={`p-3 rounded-2xl border-2 text-left transition-all ${
+                      deliveryMethod === 'fiorino'
+                        ? 'border-sage-500 bg-sage-50 text-sage-800 ring-2 ring-sage-500/20'
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Truck className={deliveryMethod === 'fiorino' ? 'text-sage-600' : 'text-gray-400'} size={20} />
+                        <div>
+                          <span className="font-bold text-xs block">Entrega Convencional (Fiorino)</span>
+                          <span className="text-[11px] text-gray-500">Entrega na rota do dia</span>
+                        </div>
+                      </div>
+                      <span className={`text-xs font-bold ${subtotal >= 30 ? 'text-green-600' : 'text-sage-700'}`}>
+                        {subtotal >= 30 ? 'Grátis' : 'R$ 2,00'}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* Moto Option */}
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryMethod('moto')}
+                    className={`p-3 rounded-2xl border-2 text-left transition-all ${
+                      deliveryMethod === 'moto'
+                        ? 'border-sage-500 bg-sage-50 text-sage-800 ring-2 ring-sage-500/20'
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Bike className={deliveryMethod === 'moto' ? 'text-honey-600' : 'text-gray-400'} size={20} />
+                        <div>
+                          <span className="font-bold text-xs block">Entrega Expressa (Moto)</span>
+                          <span className="text-[11px] text-gray-500">Entrega rápida / prioritária</span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-sage-700">R$ 10,00</span>
+                    </div>
+                  </button>
                 </div>
               </div>
 

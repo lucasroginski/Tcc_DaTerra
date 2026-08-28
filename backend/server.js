@@ -10,7 +10,7 @@
 import express from 'express';
 import cors from 'cors';
 import { listProducts, createProduct, updateProduct, deleteProduct, updateStock } from './controllers/productController.js';
-import { checkoutSale, getSales } from './controllers/saleController.js';
+import { checkoutSale, getSales, getDeliveries, updateDeliveryStatus } from './controllers/saleController.js';
 import { login, register, upgradePlan } from './controllers/authController.js';
 import { logActivity, getActivities } from './controllers/activityController.js';
 import { getProducerReport } from './controllers/reportController.js';
@@ -57,6 +57,10 @@ app.post('/api/sales', checkoutSale);
 
 // GET /api/sales - Buscar vendas
 app.get('/api/sales', getSales);
+
+// Rotas de Entregas Logísticas
+app.get('/api/entregas/produtor/:producerId', getDeliveries);
+app.patch('/api/entregas/:pedido_id/status', updateDeliveryStatus);
 
 // Rotas de Atividades (Auditoria)
 app.post('/api/activities', logActivity);
