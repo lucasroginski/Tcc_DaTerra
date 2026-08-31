@@ -10,8 +10,10 @@
 import express from 'express';
 import cors from 'cors';
 import { listProducts, createProduct, updateProduct, deleteProduct, updateStock } from './controllers/productController.js';
-import { checkoutSale, getSales, getDeliveries, updateDeliveryStatus } from './controllers/saleController.js';
+import { checkoutSale, getSales, getDeliveries, updateDeliveryStatus, getClientOrders, hideClientOrder } from './controllers/saleController.js';
 import { login, register, upgradePlan } from './controllers/authController.js';
+import { createOccurrence, getProducerOccurrences, resolveOccurrence } from './controllers/occurrenceController.js';
+import { sendMessage, getConversation, getInbox } from './controllers/chatController.js';
 import { logActivity, getActivities } from './controllers/activityController.js';
 import { getProducerReport } from './controllers/reportController.js';
 
@@ -61,6 +63,18 @@ app.get('/api/sales', getSales);
 // Rotas de Entregas Logísticas
 app.get('/api/entregas/produtor/:producerId', getDeliveries);
 app.patch('/api/entregas/:pedido_id/status', updateDeliveryStatus);
+
+// Rotas do Cliente e Produtor (Pedidos e Ocorrências)
+app.get('/api/pedidos/cliente/:cliente_id', getClientOrders);
+app.patch('/api/pedidos/:pedido_id/ocultar', hideClientOrder);
+app.post('/api/pedidos/:pedido_id/ocorrencia', createOccurrence);
+app.get('/api/ocorrencias/produtor/:producerId', getProducerOccurrences);
+app.delete('/api/ocorrencias/:occurrence_id', resolveOccurrence);
+
+// Rotas de Mensageria (Chat Interno)
+app.post('/api/chat/send', sendMessage);
+app.get('/api/chat/conversation/:userId/:otherUserId', getConversation);
+app.get('/api/chat/inbox/:userId', getInbox);
 
 // Rotas de Atividades (Auditoria)
 app.post('/api/activities', logActivity);

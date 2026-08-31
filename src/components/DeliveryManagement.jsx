@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { Truck, Bike, MapPin, Phone, CheckCircle2, Clock, Printer, Search, Package } from 'lucide-react';
+import { Truck, Bike, MapPin, Phone, CheckCircle2, Clock, Printer, Search, Package, AlertTriangle, MessageCircle } from 'lucide-react';
 
 const DeliveryManagement = () => {
-  const { fetchDeliveries, changeDeliveryStatus } = useApp();
+  const { fetchDeliveries, changeDeliveryStatus, fetchProducerOccurrences } = useApp();
   const { currentUser } = useAuth();
   
   const [deliveries, setDeliveries] = useState([]);
+  const [occurrences, setOccurrences] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('todos'); // 'todos', 'fiorino', 'moto', 'entregues'
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,6 +18,9 @@ const DeliveryManagement = () => {
       setLoading(true);
       const data = await fetchDeliveries(currentUser.id);
       setDeliveries(data);
+      
+      const occData = await fetchProducerOccurrences(currentUser.id);
+      setOccurrences(occData);
     } catch (error) {
       console.error(error);
     } finally {
@@ -88,6 +92,39 @@ const DeliveryManagement = () => {
           Imprimir Rota do Dia
         </button>
       </div>
+
+      {/* Alertas de Ocorrências / Reclamações */}
+      {occurrences.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-3xl p-5 shadow-sm print:hidden">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="text-red-650" size={24} />
+            <h2 className="font-extrabold text-red-800 text-lg">
+              Reclamações e Ocorrências Pendentes ({occurrences.length})
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {occurrences.map(occ => (
+              <div key={occ.occurrence_id} className="bg-white p-4 rounded-2xl border border-red-100 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pedido #{occ.sale_id}</span>
+                    <span className="text-xs text-gray-500">{new Date(occ.created_at).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                  <h4 className="font-bold text-gray-800">{occ.client_name}</h4>
+                  <p className="text-sm font-semibold text-red-600 mt-1">{occ.reason}</p>
+                  <p className="text-sm text-gray-600 mt-2 bg-gray-50 p-2 rounded-lg italic">"{occ.details}"</p>
+                </div>
+                <button 
+                  onClick={() => openWhatsApp(occ.client_phone)}
+                  className="mt-4 flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white py-2 px-4 rounded-xl text-sm font-bold transition-colors w-full"
+                >
+                  <MessageCircle size={16} /> Resolver via WhatsApp
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Resumo do Dia */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:hidden">

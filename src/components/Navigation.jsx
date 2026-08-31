@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { Store, Package, ShoppingCart, Users, LayoutDashboard } from 'lucide-react';
+import { Store, Package, ShoppingCart, Users, LayoutDashboard, Clock } from 'lucide-react';
 
 const Navigation = () => {
   const { currentScreen, setCurrentScreen } = useApp();
@@ -19,7 +19,8 @@ const Navigation = () => {
     );
   } else {
     navItems.push(
-      { id: 'catalog', label: 'Vitrine', icon: Store }
+      { id: 'catalog', label: 'Vitrine', icon: Store },
+      { id: 'orders', label: 'Pedidos', icon: Clock }
     );
   }
 
