@@ -68,7 +68,7 @@ export const getSales = async (req, res) => {
 };
 
 export const checkoutSale = async (req, res) => {
-  const { items, paymentMethod, deliveryMethod = 'fiorino', freightValue = 0, clientName = '', clientPhone = '', deliveryAddress = '' } = req.body; // Array de itens: [{ product_id, quantity, price }]
+  const { items, paymentMethod, deliveryMethod = 'fiorino', freightValue = 0, clientName = '', clientPhone = '', deliveryAddress = '', clientId = null } = req.body; // Array de itens: [{ product_id, quantity, price }]
 
   if (!items || items.length === 0 || !paymentMethod) {
     return res.status(400).json({ error: 'Carrinho de compras vazio ou dados ausentes' });
@@ -143,8 +143,8 @@ export const checkoutSale = async (req, res) => {
     totalValue += Number(freightValue);
 
     const [saleResult] = await connection.query(
-      'INSERT INTO sales (total_value, payment_method, tipo_entrega, valor_frete, client_name, client_phone, delivery_address) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [totalValue, paymentMethod, deliveryMethod, freightValue, clientName, clientPhone, deliveryAddress]
+      'INSERT INTO sales (total_value, payment_method, tipo_entrega, valor_frete, client_name, client_phone, delivery_address, client_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [totalValue, paymentMethod, deliveryMethod, freightValue, clientName, clientPhone, deliveryAddress, clientId]
     );
     const saleId = saleResult.insertId;
 
@@ -260,3 +260,62 @@ export const updateDeliveryStatus = async (req, res) => {
     return res.status(500).json({ error: 'Erro ao atualizar status' });
   }
 };
+
+export const getClientOrders = async (req, res) => {
+  const { cliente_id } = req.params;
+  try {
+    const query = `
+      SELECT 
+        s.id as sale_id, s.sale_date, s.total_value, s.payment_method,
+        s.tipo_entrega, s.valor_frete, s.delivery_status,
+        si.quantity, si.unit_price as price,
+        p.name as product_name, p.producer_id,
+        (SELECT id FROM occurrences WHERE sale_id = s.id LIMIT 1) as occurrence_id
+      FROM sales s
+      JOIN sale_items si ON s.id = si.sale_id
+      JOIN products p ON si.product_id = p.id
+      WHERE s.client_id = ? AND s.client_hidden = FALSE
+      ORDER BY s.sale_date DESC
+    `;
+    const [rows] = await db.query(query, [cliente_id]);
+    
+    const ordersMap = {};
+    for (const row of rows) {
+      if (!ordersMap[row.sale_id]) {
+        ordersMap[row.sale_id] = {
+          id: row.sale_id,
+          date: row.sale_date,
+          total_value: parseFloat(row.total_value),
+          payment_method: row.payment_method,
+          tipo_entrega: row.tipo_entrega,
+          valor_frete: parseFloat(row.valor_frete),
+          delivery_status: row.delivery_status,
+          producer_id: row.producer_id,
+          occurrence_id: row.occurrence_id,
+          items: []
+        };
+      }
+      ordersMap[row.sale_id].items.push({
+        product_name: row.product_name,
+        quantity: row.quantity,
+        price: parseFloat(row.price)
+      });
+    }
+    return res.status(200).json(Object.values(ordersMap));
+  } catch (error) {
+    console.error('Erro ao buscar pedidos do cliente:', error);
+    return res.status(500).json({ error: 'Erro interno ao consultar pedidos' });
+  }
+};
+
+export const hideClientOrder = async (req, res) => {
+  const { pedido_id } = req.params;
+  try {
+    await db.query('UPDATE sales SET client_hidden = TRUE WHERE id = ?', [pedido_id]);
+    return res.status(200).json({ success: true, message: 'Pedido ocultado com sucesso' });
+  } catch (error) {
+    console.error('Erro ao ocultar pedido:', error);
+    return res.status(500).json({ error: 'Erro ao ocultar pedido' });
+  }
+};
+

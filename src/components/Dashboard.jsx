@@ -12,11 +12,12 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 
-import { TrendingUp, ShoppingBag, AlertTriangle, Package, ShoppingCart, Users, FileText, Printer, X, Loader2, Truck } from 'lucide-react';
+import { TrendingUp, ShoppingBag, AlertTriangle, Package, ShoppingCart, Users, FileText, Printer, X, Loader2, Truck, MessageSquare } from 'lucide-react';
 import Inventory from './Inventory';
 import POS from './POS';
 import ClientActivities from './ClientActivities';
 import DeliveryManagement from './DeliveryManagement';
+import ProducerInbox from './ProducerInbox';
 
 const Dashboard = () => {
   const { currentScreen, setCurrentScreen, getMonthlyRevenue, getTotalSalesCount, getLowStockItems, products, getProductStock, createSale } = useApp();
@@ -82,6 +83,8 @@ const Dashboard = () => {
         return <ClientActivities />;
       case 'deliveries':
         return <DeliveryManagement />;
+      case 'messages':
+        return <ProducerInbox />;
       default:
         return <Inventory />;
     }
@@ -241,7 +244,18 @@ const Dashboard = () => {
             }`}
           >
             <Truck size={18} />
-            <span>Entregas / Expedição</span>
+            <span className="hidden sm:inline">Entregas / Expedição</span>
+          </button>
+          <button
+            onClick={() => setCurrentScreen('messages')}
+            className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+              activeTab === 'messages'
+                ? 'bg-sage-500 text-white shadow-md'
+                : 'text-sage-700 hover:text-sage-900 hover:bg-sage-50'
+            }`}
+          >
+            <MessageSquare size={18} />
+            <span className="hidden sm:inline">Mensagens</span>
           </button>
         </div>
 

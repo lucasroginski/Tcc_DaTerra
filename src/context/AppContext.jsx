@@ -26,13 +26,13 @@ export const AppProvider = ({ children }) => {
       }
       const response = await fetch(url);
       const data = await response.json();
-      
+
       const formattedData = data.map(product => ({
         ...product,
         price: parseFloat(product.price),
         promo_price: product.promo_price ? parseFloat(product.promo_price) : null
       }));
-      
+
       setProducts(formattedData);
     } catch (error) {
       console.error('Erro ao buscar produtos:', error);
@@ -196,9 +196,9 @@ export const AppProvider = ({ children }) => {
       const response = await fetch('http://localhost:5000/api/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: saleItems, paymentMethod, deliveryMethod, freightValue, clientName, clientPhone, deliveryAddress })
+        body: JSON.stringify({ items: saleItems, paymentMethod, deliveryMethod, freightValue, clientName, clientPhone, deliveryAddress, clientId: currentUser?.id })
       });
-      
+
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Erro ao finalizar venda');
 
@@ -298,6 +298,106 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const fetchClientOrders = async (clientId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/pedidos/cliente/${clientId}`);
+      if (!response.ok) throw new Error('Falha ao buscar pedidos');
+      return await response.json();
+    } catch (error) {
+      console.error('Erro ao buscar pedidos do cliente:', error);
+      throw error;
+    }
+  };
+
+  const fetchProducerOccurrences = async (producerId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/ocorrencias/produtor/${producerId}`);
+      if (!response.ok) throw new Error('Falha ao buscar ocorrências');
+      return await response.json();
+    } catch (error) {
+      console.error('Erro ao buscar ocorrências do produtor:', error);
+      throw error;
+    }
+  };
+
+  const fetchChatInbox = async (userId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/chat/inbox/${userId}`);
+      if (!response.ok) throw new Error('Falha ao buscar inbox');
+      return await response.json();
+    } catch (error) {
+      console.error('Erro ao buscar inbox:', error);
+      return [];
+    }
+  };
+
+  const fetchChatConversation = async (userId, otherUserId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/chat/conversation/${userId}/${otherUserId}`);
+      if (!response.ok) throw new Error('Falha ao buscar conversa');
+      return await response.json();
+    } catch (error) {
+      console.error('Erro ao buscar conversa:', error);
+      return [];
+    }
+  };
+
+  const sendChatMessage = async (senderId, receiverId, content) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/chat/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senderId, receiverId, content })
+      });
+      if (!response.ok) throw new Error('Falha ao enviar mensagem');
+      return await response.json();
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+      throw error;
+    }
+  };
+
+  const reportIssue = async (saleId, issueData) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/pedidos/${saleId}/ocorrencia`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(issueData),
+      });
+      if (!response.ok) throw new Error('Falha ao reportar problema');
+      return await response.json();
+    } catch (error) {
+      console.error('Erro ao reportar problema:', error);
+      throw error;
+    }
+  };
+
+  const resolveIssue = async (occurrenceId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/ocorrencias/${occurrenceId}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) throw new Error('Falha ao resolver problema');
+      return await response.json();
+    } catch (error) {
+      console.error('Erro ao resolver problema:', error);
+      throw error;
+    }
+  };
+
+  const hideOrder = async (saleId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/pedidos/${saleId}/ocultar`, {
+        method: 'PATCH'
+      });
+      if (!response.ok) throw new Error('Falha ao ocultar pedido');
+      return await response.json();
+    } catch (error) {
+      console.error('Erro ao ocultar pedido:', error);
+      throw error;
+    }
+  };
+
   const value = {
     products,
     sales,
@@ -323,6 +423,14 @@ export const AppProvider = ({ children }) => {
     getTotalSalesCount,
     fetchDeliveries,
     changeDeliveryStatus,
+    fetchClientOrders,
+    fetchProducerOccurrences,
+    reportIssue,
+    resolveIssue,
+    hideOrder,
+    fetchChatInbox,
+    fetchChatConversation,
+    sendChatMessage,
     notifications,
     setNotifications
   };

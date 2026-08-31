@@ -21,6 +21,7 @@ import ClientActivities from './components/ClientActivities';
 import Navigation from './components/Navigation';
 import AuthModal from './components/AuthModal';
 import PlansModal from './components/PlansModal';
+import CustomerOrders from './components/CustomerOrders';
 import { ShoppingBag, X } from 'lucide-react';
 
 function AppContent() {
@@ -63,6 +64,7 @@ function AppContent() {
     // 2. MODO CLIENTE: Direciona para a vitrine de e-commerce (Marketplace)
     //    com carrinho e listagem otimizada de ofertas da região.
     if (currentUser?.role === 'client') {
+      if (currentScreen === 'orders') return <CustomerOrders />;
       return <Marketplace />;
     }
 
