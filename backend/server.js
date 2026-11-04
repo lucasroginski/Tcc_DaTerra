@@ -16,6 +16,8 @@ import { createOccurrence, getProducerOccurrences, resolveOccurrence } from './c
 import { sendMessage, getConversation, getInbox } from './controllers/chatController.js';
 import { logActivity, getActivities } from './controllers/activityController.js';
 import { getProducerReport } from './controllers/reportController.js';
+import { getCycles, createCycle, harvestCycle } from './controllers/cycleController.js';
+import { getApiaries, createApiary, harvestHoney } from './controllers/beekeepingController.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -82,6 +84,16 @@ app.get('/api/activities', getActivities);
 
 // Rotas de Relatórios (Producer)
 app.get('/api/reports/producer/:id', getProducerReport);
+
+// Rotas de Safra (Planting Cycles)
+app.get('/api/cycles/:producerId', getCycles);
+app.post('/api/cycles', createCycle);
+app.patch('/api/cycles/:id/harvest', harvestCycle);
+
+// Rotas de Apicultura
+app.get('/api/apiaries/:producerId', getApiaries);
+app.post('/api/apiaries', createApiary);
+app.patch('/api/apiaries/:id/harvest', harvestHoney);
 
 // Middleware para tratamento global de erros (Fallback final de segurança)
 app.use((err, req, res, next) => {

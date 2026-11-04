@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { Store, Package, ShoppingCart, Users, LayoutDashboard, Clock } from 'lucide-react';
+import { Store, Package, ShoppingCart, Users, LayoutDashboard, Clock, Sprout } from 'lucide-react';
 
 const Navigation = () => {
   const { currentScreen, setCurrentScreen } = useApp();
@@ -13,6 +13,7 @@ const Navigation = () => {
   if (isProducer()) {
     navItems.push(
       { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
+      { id: 'planting', label: 'Safras', icon: Sprout },
       { id: 'inventory', label: 'Estoque', icon: Package },
       { id: 'pos', label: 'Vendas', icon: ShoppingCart },
       { id: 'activities', label: 'Atividades', icon: Users }

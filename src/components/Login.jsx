@@ -9,11 +9,11 @@ const Login = () => {
   const [error, setError] = useState('');
   const [showRegister, setShowRegister] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
-    const result = login(email, password);
+    const result = await login(email, password);
     if (!result.success) {
       setError(result.error);
     }
@@ -117,7 +117,7 @@ const Register = ({ onBack }) => {
   const [role, setRole] = useState('client');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -131,7 +131,7 @@ const Register = ({ onBack }) => {
       return;
     }
 
-    const result = register(name, email, password, role);
+    const result = await register(name, email, password, role);
     if (!result.success) {
       setError(result.error);
     } else {
