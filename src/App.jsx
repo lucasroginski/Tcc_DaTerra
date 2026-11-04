@@ -114,8 +114,8 @@ function AppContent() {
       {/* Global SaaS Plans Modal */}
       <PlansModal />
 
-      {/* Bottom Navigation Bar for Logged-In Users */}
-      {isAuthenticated && <Navigation />}
+      {/* Bottom Navigation Bar for Logged-In Users (Clients only) */}
+      {isAuthenticated && !isProducer() && <Navigation />}
 
     </div>
   );

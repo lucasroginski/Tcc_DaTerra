@@ -36,10 +36,10 @@ const AuthModal = () => {
 
   if (!authModalOpen) return null;
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoginError('');
-    const result = login(loginEmail, loginPassword);
+    const result = await login(loginEmail, loginPassword);
     if (result.success) {
       if (result.user.role === 'producer' || result.user.role === 'admin') {
         setCurrentScreen('dashboard');
@@ -51,7 +51,7 @@ const AuthModal = () => {
     }
   };
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setRegError('');
 
@@ -65,7 +65,7 @@ const AuthModal = () => {
       return;
     }
 
-    const result = register(regName, regEmail, regPassword, regRole);
+    const result = await register(regName, regEmail, regPassword, regRole);
     if (result.success) {
       if (result.user.role === 'producer' || result.user.role === 'admin') {
         setCurrentScreen('dashboard');

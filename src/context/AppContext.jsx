@@ -82,7 +82,9 @@ export const AppProvider = ({ children }) => {
         })
       });
       if (response.ok) {
+        const data = await response.json();
         fetchProducts(); // Refresh list
+        return data;
       }
     } catch (error) {
       console.error('Erro ao adicionar produto:', error);
@@ -235,6 +237,7 @@ export const AppProvider = ({ children }) => {
       });
       if (response.ok) {
         await fetchProducts();
+        return await response.json();
       }
     } catch (error) {
       console.error('Erro ao adicionar estoque:', error);
@@ -412,6 +415,7 @@ export const AppProvider = ({ children }) => {
     clearCart,
     getTotalCartItemsCount,
     getTotalCartPrice,
+    fetchProducts,
     addProduct,
     updateProduct,
     deleteProduct,

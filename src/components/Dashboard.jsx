@@ -12,12 +12,14 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 
-import { TrendingUp, ShoppingBag, AlertTriangle, Package, ShoppingCart, Users, FileText, Printer, X, Loader2, Truck, MessageSquare } from 'lucide-react';
+import { TrendingUp, ShoppingBag, AlertTriangle, Package, ShoppingCart, Users, FileText, Printer, X, Loader2, Truck, MessageSquare, Sprout, Hexagon } from 'lucide-react';
 import Inventory from './Inventory';
 import POS from './POS';
 import ClientActivities from './ClientActivities';
 import DeliveryManagement from './DeliveryManagement';
 import ProducerInbox from './ProducerInbox';
+import PlantingCycle from './PlantingCycle';
+import BeekeepingManagement from './BeekeepingManagement';
 
 const Dashboard = () => {
   const { currentScreen, setCurrentScreen, getMonthlyRevenue, getTotalSalesCount, getLowStockItems, products, getProductStock, createSale } = useApp();
@@ -85,6 +87,10 @@ const Dashboard = () => {
         return <DeliveryManagement />;
       case 'messages':
         return <ProducerInbox />;
+      case 'planting':
+        return <PlantingCycle />;
+      case 'beekeeping':
+        return <BeekeepingManagement />;
       default:
         return <Inventory />;
     }
@@ -202,6 +208,28 @@ const Dashboard = () => {
 
         {/* Console Navigation Tab Bar */}
         <div className="bg-white p-1.5 rounded-2xl shadow-md border border-sage-100 flex overflow-x-auto gap-1">
+          <button
+            onClick={() => setCurrentScreen('planting')}
+            className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+              activeTab === 'planting'
+                ? 'bg-sage-500 text-white shadow-md'
+                : 'text-sage-700 hover:text-sage-900 hover:bg-sage-50'
+            }`}
+          >
+            <Sprout size={18} />
+            <span>Safras Inteligentes</span>
+          </button>
+          <button
+            onClick={() => setCurrentScreen('beekeeping')}
+            className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+              activeTab === 'beekeeping'
+                ? 'bg-honey-500 text-white shadow-md'
+                : 'text-honey-700 hover:text-honey-900 hover:bg-honey-50'
+            }`}
+          >
+            <Hexagon size={18} />
+            <span>Apicultura</span>
+          </button>
           <button
             onClick={() => setCurrentScreen('inventory')}
             className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${

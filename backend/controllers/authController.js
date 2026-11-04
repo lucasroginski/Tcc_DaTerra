@@ -17,6 +17,7 @@ export const login = async (req, res) => {
       role: user.role,
       plan: user.plan,
       productLimit: user.product_limit,
+      safraPro: user.safra_pro,
       createdAt: user.created_at
     });
   } catch (error) {
@@ -53,16 +54,17 @@ export const register = async (req, res) => {
   }
 };
 
-// Upgrade User Plan / Limit
 export const upgradePlan = async (req, res) => {
   const { id } = req.params;
-  const { plan, extraLimit } = req.body;
+  const { plan, extraLimit, safraPro } = req.body;
 
   try {
     if (plan === 'vip') {
       await db.query('UPDATE users SET plan = ?, product_limit = GREATEST(product_limit, 10) WHERE id = ?', [plan, id]);
     } else if (extraLimit) {
       await db.query('UPDATE users SET product_limit = product_limit + ? WHERE id = ?', [extraLimit, id]);
+    } else if (safraPro) {
+      await db.query('UPDATE users SET safra_pro = TRUE WHERE id = ?', [id]);
     } else {
       return res.status(400).json({ error: 'Nenhuma alteração enviada' });
     }
@@ -77,6 +79,7 @@ export const upgradePlan = async (req, res) => {
       role: user.role,
       plan: user.plan,
       productLimit: user.product_limit,
+      safraPro: user.safra_pro,
       createdAt: user.created_at
     });
   } catch (error) {
