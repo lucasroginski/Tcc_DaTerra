@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "api": "node backend/server.js",
+    "setup-db": "node backend/setup_db.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },

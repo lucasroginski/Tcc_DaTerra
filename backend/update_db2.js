@@ -2,7 +2,7 @@ import db from './config/database.js';
 
 async function updateDb() {
   try {
-    await db.query(`ALTER TABLE daterra_db.sales 
+    await db.query(`ALTER TABLE sales 
       ADD COLUMN client_name VARCHAR(100) DEFAULT '',
       ADD COLUMN client_phone VARCHAR(20) DEFAULT '',
       ADD COLUMN delivery_address VARCHAR(255) DEFAULT '',

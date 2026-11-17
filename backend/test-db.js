@@ -6,9 +6,10 @@ async function testConnection() {
       host: 'localhost',
       user: 'root',
       password: '',
-      database: 'daterra_db'
+      database: 'Tcc-DaTerra',
+      port: 3306
     });
-    console.log('Successfully connected to daterra_db.');
+    console.log('Successfully connected to Tcc-DaTerra.');
     
     const [rows] = await connection.query('SELECT * FROM users');
     console.log('Users in DB:');
